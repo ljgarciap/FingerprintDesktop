@@ -37,7 +37,7 @@ public class ReportWindow {
         root.getChildren().addAll(buildFilterBox(), table, buildExportButtons());
 
         Stage stage = new Stage();
-        stage.setTitle("Attendance Report");
+        stage.setTitle("Reporte de Ingresos");
         stage.setScene(new Scene(root, 900, 600)); // ventana más ancha
         stage.show();
 
@@ -46,13 +46,13 @@ public class ReportWindow {
     }
 
     private void setupTable() {
-        TableColumn<AttendanceRecord, String> nameCol = new TableColumn<>("Employee");
+        TableColumn<AttendanceRecord, String> nameCol = new TableColumn<>("Usuario");
         nameCol.setCellValueFactory(new PropertyValueFactory<>("employeeName"));
 
         TableColumn<AttendanceRecord, String> timeCol = new TableColumn<>("Timestamp");
         timeCol.setCellValueFactory(new PropertyValueFactory<>("timestamp"));
 
-        TableColumn<AttendanceRecord, String> typeCol = new TableColumn<>("Type");
+        TableColumn<AttendanceRecord, String> typeCol = new TableColumn<>("Tipo");
         typeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
 
         table.getColumns().addAll(nameCol, timeCol, typeCol);
@@ -60,7 +60,7 @@ public class ReportWindow {
     }
 
     private HBox buildFilterBox() {
-        Button filterBtn = new Button("Filter");
+        Button filterBtn = new Button("Filtrar");
         filterBtn.setOnAction(e -> {
             try {
                 Employee emp = employeeFilter.getValue();
@@ -68,19 +68,19 @@ public class ReportWindow {
                 LocalDate to = toDate.getValue();
                 loadData(emp, from, to);
             } catch (Exception ex) {
-                new Alert(Alert.AlertType.ERROR, "Error filtering: " + ex.getMessage()).show();
+                new Alert(Alert.AlertType.ERROR, "Error filtrando: " + ex.getMessage()).show();
             }
         });
 
-        HBox filters = new HBox(10, new Label("Employee:"), employeeFilter,
-                new Label("From:"), fromDate, new Label("To:"), toDate, filterBtn);
+        HBox filters = new HBox(10, new Label("Usuario:"), employeeFilter,
+                new Label("Desde:"), fromDate, new Label("Hasta:"), toDate, filterBtn);
         filters.setPadding(new Insets(5));
         return filters;
     }
 
     private HBox buildExportButtons() {
-        Button exportExcel = new Button("Export to Excel");
-        Button exportPDF = new Button("Export to PDF");
+        Button exportExcel = new Button("Exportar Excel");
+        Button exportPDF = new Button("Exportar PDF");
 
         exportExcel.setOnAction(e -> exportToExcel());
         exportPDF.setOnAction(e -> exportToPDF());
@@ -169,13 +169,13 @@ public class ReportWindow {
     private void exportToExcel() {
         try {
             FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("Save Excel Report");
+            fileChooser.setTitle("Generar Excel");
             fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Files", "*.xlsx"));
             var file = fileChooser.showSaveDialog(null);
             if (file == null) return;
 
             Workbook workbook = new XSSFWorkbook();
-            Sheet sheet = workbook.createSheet("Attendance Report");
+            Sheet sheet = workbook.createSheet("Reporte de Ingresos");
 
             org.apache.poi.ss.usermodel.Font headerFont = workbook.createFont();
             headerFont.setBold(true);
@@ -185,7 +185,7 @@ public class ReportWindow {
             headerStyle.setFont(headerFont);
 
             Row headerRow = sheet.createRow(0);
-            String[] columns = {"Employee", "Timestamp", "Type"};
+            String[] columns = {"Usuario", "Timestamp", "Tipo"};
             for (int i = 0; i < columns.length; i++) {
                 Cell cell = headerRow.createCell(i);
                 cell.setCellValue(columns[i]);
@@ -209,9 +209,9 @@ public class ReportWindow {
             }
             workbook.close();
 
-            new Alert(Alert.AlertType.INFORMATION, "Excel exported successfully!").show();
+            new Alert(Alert.AlertType.INFORMATION, "Excel exportado correctamente!").show();
         } catch (Exception e) {
-            new Alert(Alert.AlertType.ERROR, "Error exporting to Excel: " + e.getMessage()).show();
+            new Alert(Alert.AlertType.ERROR, "Error exportando Excel: " + e.getMessage()).show();
         }
     }
 
@@ -235,14 +235,14 @@ public class ReportWindow {
             com.itextpdf.text.Font cellFont = com.itextpdf.text.FontFactory.getFont(
                     com.itextpdf.text.FontFactory.HELVETICA, 10);
 
-            document.add(new com.itextpdf.text.Paragraph("Attendance Report", headerFont));
+            document.add(new com.itextpdf.text.Paragraph("Reporte de Ingresos", headerFont));
             document.add(new com.itextpdf.text.Paragraph(" ")); // espacio
 
             PdfPTable pdfTable = new PdfPTable(3);
             pdfTable.setWidthPercentage(100);
             pdfTable.setWidths(new float[]{3f, 4f, 2f});
 
-            String[] headers = {"Employee", "Timestamp", "Type"};
+            String[] headers = {"Usuario", "Timestamp", "Tipo"};
             for (String header : headers) {
                 PdfPCell cell = new PdfPCell(new com.itextpdf.text.Phrase(header, headerFont));
                 cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
@@ -259,9 +259,9 @@ public class ReportWindow {
             document.add(pdfTable);
             document.close();
 
-            new Alert(Alert.AlertType.INFORMATION, "PDF exported successfully!").show();
+            new Alert(Alert.AlertType.INFORMATION, "PDF exportado correctamente!").show();
         } catch (Exception e) {
-            new Alert(Alert.AlertType.ERROR, "Error exporting to PDF: " + e.getMessage()).show();
+            new Alert(Alert.AlertType.ERROR, "Error exportando PDF: " + e.getMessage()).show();
         }
     }
 }
