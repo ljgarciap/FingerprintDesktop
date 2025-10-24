@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.softclass.fingerprint.AttendanceController">
+
+    <top>
+        <Label text="Fingerprint Attendance System"
+               style="-fx-font-size: 20px; -fx-padding: 10; -fx-font-weight: bold;"/>
+    </top>
+
+    <center>
+        <VBox spacing="15" alignment="CENTER">
+
+            <TitledPane text="Employees" expanded="true" collapsible="false">
+                <VBox spacing="10" alignment="CENTER">
+                    <ListView fx:id="employeeList" prefHeight="250" prefWidth="480"/>
+                    <HBox spacing="10" alignment="CENTER">
+                        <Button text="Add Employee" onAction="#onAddEmployee"/>
+                        <Button text="Edit Employee" onAction="#onEditEmployee"/>
+                        <Button text="Enroll Fingerprint" onAction="#onEnroll"/>
+                    </HBox>
+                </VBox>
+            </TitledPane>
+
+            <TitledPane text="Attendance" expanded="true" collapsible="false">
+                <HBox spacing="10" alignment="CENTER">
+                    <Button text="Register Entry" onAction="#onCheckIn"/>
+                    <Button text="Register Exit" onAction="#onCheckOut"/>
+                </HBox>
+            </TitledPane>
+
+            <TitledPane text="Reports" expanded="false">
+                <VBox spacing="10" alignment="CENTER">
+                    <Button text="View Attendance Report" onAction="#onShowReports"/>
+                </VBox>
+            </TitledPane>
+
+            <Label fx:id="statusLabel" textFill="green" style="-fx-font-weight: bold;"/>
+        </VBox>
+    </center>
+
+</BorderPane>
