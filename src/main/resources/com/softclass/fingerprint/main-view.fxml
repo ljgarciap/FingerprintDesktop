@@ -6,34 +6,35 @@
             fx:controller="com.softclass.fingerprint.AttendanceController">
 
     <top>
-        <Label text="Fingerprint Attendance System"
+        <Label text="Sistema de control de ingresos"
                style="-fx-font-size: 20px; -fx-padding: 10; -fx-font-weight: bold;"/>
     </top>
 
     <center>
         <VBox spacing="15" alignment="CENTER">
 
-            <TitledPane text="Employees" expanded="true" collapsible="false">
+            <TitledPane text="Usuarios" expanded="true" collapsible="false">
                 <VBox spacing="10" alignment="CENTER">
                     <ListView fx:id="employeeList" prefHeight="250" prefWidth="480"/>
                     <HBox spacing="10" alignment="CENTER">
-                        <Button text="Add Employee" onAction="#onAddEmployee"/>
-                        <Button text="Edit Employee" onAction="#onEditEmployee"/>
-                        <Button text="Enroll Fingerprint" onAction="#onEnroll"/>
+                        <Button text="Añadir Empleado" onAction="#onAddEmployee"/>
+                        <Button text="Editar Empleado" onAction="#onEditEmployee"/>
+                        <Button text="Enrolar Huella" onAction="#onEnroll"/>
                     </HBox>
                 </VBox>
             </TitledPane>
 
-            <TitledPane text="Attendance" expanded="true" collapsible="false">
+            <TitledPane text="Registros" expanded="true" collapsible="false">
                 <HBox spacing="10" alignment="CENTER">
-                    <Button text="Register Entry" onAction="#onCheckIn"/>
-                    <Button text="Register Exit" onAction="#onCheckOut"/>
+                    <Button text="Registrar Entrada" onAction="#onCheckIn"/>
+                    <Button text="Registrar Salida" onAction="#onCheckOut"/>
+                    <Button fx:id="toggleContinuousButton" text="Activar modo continuo" />
                 </HBox>
             </TitledPane>
 
-            <TitledPane text="Reports" expanded="false">
+            <TitledPane text="Reportes" expanded="false">
                 <VBox spacing="10" alignment="CENTER">
-                    <Button text="View Attendance Report" onAction="#onShowReports"/>
+                    <Button text="Ver Reporte de Asistencias" onAction="#onShowReports"/>
                 </VBox>
             </TitledPane>
 

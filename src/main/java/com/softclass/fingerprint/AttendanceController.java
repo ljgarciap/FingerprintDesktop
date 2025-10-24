@@ -1,10 +1,11 @@
 package com.softclass.fingerprint;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 
-import java.sql.SQLException;
+import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -12,17 +13,28 @@ public class AttendanceController {
 
     @FXML private ListView<Employee> employeeList;
     @FXML private Label statusLabel;
+    @FXML private Button toggleContinuousButton; // botón nuevo (añádelo en el FXML con fx:id="toggleContinuousButton")
 
     private final EmployeeController employeeController = new EmployeeController();
     private FingerprintService fingerprintService;
+
+    private boolean continuousModeActive = false;
 
     @FXML
     public void initialize() {
         try {
             fingerprintService = new FingerprintService();
             refreshEmployees();
+            setupContinuousButton();
         } catch (Exception e) {
             statusLabel.setText("Error init: " + e.getMessage());
+        }
+    }
+
+    private void setupContinuousButton() {
+        if (toggleContinuousButton != null) {
+            toggleContinuousButton.setText("Activar modo continuo");
+            toggleContinuousButton.setOnAction(e -> toggleContinuousMode());
         }
     }
 
@@ -70,6 +82,9 @@ public class AttendanceController {
             return;
         }
         try {
+            // detener modo continuo antes de enrolar
+            stopContinuousModeIfActive();
+
             String tmpl = fingerprintService.enrollFingerprint();
             employeeController.updateFingerprint(sel.id, tmpl);
             refreshEmployees();
@@ -108,6 +123,81 @@ public class AttendanceController {
             statusLabel.setText("Error: " + ex.getMessage());
         }
     }
+
+    // -------------------------------------------------------------------------
+    // 🟢 MODO CONTINUO DE ESCUCHA
+    // -------------------------------------------------------------------------
+
+    private void toggleContinuousMode() {
+        if (!continuousModeActive) {
+            startContinuousMode();
+        } else {
+            stopContinuousModeIfActive();
+        }
+    }
+
+    private void startContinuousMode() {
+        continuousModeActive = true;
+        toggleContinuousButton.setText("Detener modo continuo");
+        statusLabel.setText("Modo continuo activo. Escuchando huellas...");
+
+        fingerprintService.startContinuousMode(templateBase64 -> {
+            Platform.runLater(() -> {
+                try {
+                    List<Employee> employees = employeeController.getAll();
+                    for (Employee e : employees) {
+                        if (e.fingerprintBase64 == null) continue;
+                        if (fingerprintService.match(e.fingerprintBase64, templateBase64)) {
+                            String nextType = getNextAttendanceType(e.id);
+                            saveAttendance(e.id, nextType);
+                            statusLabel.setText(nextType + " registrada para " + e.name);
+                            return;
+                        }
+                    }
+                    statusLabel.setText("Huella no registrada");
+                } catch (Exception ex) {
+                    statusLabel.setText("Error: " + ex.getMessage());
+                }
+            });
+        });
+    }
+
+    private void stopContinuousModeIfActive() {
+        if (continuousModeActive) {
+            continuousModeActive = false;
+            fingerprintService.stopContinuousMode();
+            if (toggleContinuousButton != null) {
+                toggleContinuousButton.setText("Activar modo continuo");
+            }
+            statusLabel.setText("Modo continuo detenido");
+        }
+    }
+
+    private String getNextAttendanceType(int employeeId) throws SQLException {
+        try (var ps = Database.get().prepareStatement(
+                "SELECT type FROM attendance WHERE employee_id = ? ORDER BY timestamp DESC LIMIT 1")) {
+            ps.setInt(1, employeeId);
+            try (var rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String lastType = rs.getString("type");
+                    return "IN".equals(lastType) ? "OUT" : "IN";
+                }
+            }
+        }
+        return "IN";
+    }
+
+    private void saveAttendance(int employeeId, String type) throws SQLException {
+        try (var ps = Database.get().prepareStatement(
+                "INSERT INTO attendance(employee_id, timestamp, type) VALUES(?,?,?)")) {
+            ps.setInt(1, employeeId);
+            ps.setString(2, LocalDateTime.now().toString());
+            ps.setString(3, type);
+            ps.executeUpdate();
+        }
+    }
+
+    // -------------------------------------------------------------------------
 
     @FXML
     public void onEditEmployee() {
@@ -160,10 +250,9 @@ public class AttendanceController {
     @FXML
     public void onShowReports() {
         try {
-            new ReportWindow().show(); // esto abrirá una ventana simple de reportes
+            new ReportWindow().show();
         } catch (Exception e) {
             statusLabel.setText("Error opening reports: " + e.getMessage());
         }
     }
-
 }
