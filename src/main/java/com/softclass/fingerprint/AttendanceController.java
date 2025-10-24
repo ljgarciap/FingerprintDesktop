@@ -150,12 +150,15 @@ public class AttendanceController {
                         if (fingerprintService.match(e.fingerprintBase64, templateBase64)) {
                             String nextType = getNextAttendanceType(e.id);
                             saveAttendance(e.id, nextType);
+                            SoundUtil.playSuccess();
                             statusLabel.setText(nextType + " registrada para " + e.name);
                             return;
                         }
                     }
+                    SoundUtil.playError();
                     statusLabel.setText("Huella no registrada");
                 } catch (Exception ex) {
+                    SoundUtil.playError();
                     statusLabel.setText("Error: " + ex.getMessage());
                 }
             });
