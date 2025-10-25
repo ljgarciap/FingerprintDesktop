@@ -54,7 +54,7 @@ public class EmployeeView {
 
         TableColumn<Employee, String> colFP = new TableColumn<>("Huella Registrada");
         colFP.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
-                c.getValue().fingerprintBase64 != null ? "✅ Sí" : "❌ No"
+                c.getValue().fingerprintBase64 != null ? "✅ Sí" : "No"
         ));
 
         table.getColumns().addAll(colName, colDoc, colFP);

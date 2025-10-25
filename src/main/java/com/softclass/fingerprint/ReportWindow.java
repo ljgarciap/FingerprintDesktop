@@ -108,7 +108,6 @@ public class ReportWindow {
                 list.add(e);
             }
 
-            // Agrega opción “Todos los empleados”
             Employee all = new Employee();
             all.id = -1;
             all.name = "Todos los empleados";

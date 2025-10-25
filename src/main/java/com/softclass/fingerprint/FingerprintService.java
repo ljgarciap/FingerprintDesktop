@@ -207,7 +207,7 @@ public class FingerprintService {
         try {
             sgfplib.CloseDevice();
         } catch (Exception e) {
-            System.err.println("⚠️ Error al cerrar dispositivo: " + e.getMessage());
+            System.err.println("⚠ Error al cerrar dispositivo: " + e.getMessage());
         }
     }
 }

@@ -14,7 +14,7 @@ public class SoundUtil {
             clip.open(audioStream);
             clip.start();
         } catch (Exception e) {
-            System.err.println("⚠️ No se pudo reproducir sonido: " + e.getMessage());
+            System.err.println("⚠ No se pudo reproducir sonido: " + e.getMessage());
         }
     }
 

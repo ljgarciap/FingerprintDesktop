@@ -48,8 +48,8 @@ public class AttendanceController {
                     setText(null);
                 } else {
                     String status = (e.fingerprintBase64 != null && !e.fingerprintBase64.isBlank())
-                            ? "✅ Enrolled"
-                            : "❌ Not Enrolled";
+                            ? "✅ Enrolado"
+                            : "No Enrolado";
                     setText(e.name + " (" + e.document + ") - " + status);
                 }
             }
