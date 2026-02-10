@@ -13,7 +13,8 @@ public class AttendanceController {
 
     @FXML private ListView<Employee> employeeList;
     @FXML private Label statusLabel;
-    @FXML private Button toggleContinuousButton; // botón nuevo (añádelo en el FXML con fx:id="toggleContinuousButton")
+    @FXML private Button toggleContinuousButton;
+    @FXML private CheckBox showInactiveCheck;
 
     private final EmployeeController employeeController = new EmployeeController();
     private FingerprintService fingerprintService;
@@ -39,7 +40,16 @@ public class AttendanceController {
     }
 
     private void refreshEmployees() throws SQLException {
-        employeeList.getItems().setAll(employeeController.getAll());
+        List<Employee> employees;
+
+        if (showInactiveCheck != null && showInactiveCheck.isSelected()) {
+            employees = employeeController.getAll();       // activos + inactivos
+        } else {
+            employees = employeeController.getAllActive(); // solo activos
+        }
+
+        employeeList.getItems().setAll(employees);
+
         employeeList.setCellFactory(list -> new ListCell<>() {
             @Override
             protected void updateItem(Employee e, boolean empty) {
@@ -50,7 +60,9 @@ public class AttendanceController {
                     String status = (e.fingerprintBase64 != null && !e.fingerprintBase64.isBlank())
                             ? "✅ Enrolado"
                             : "No Enrolado";
-                    setText(e.name + " (" + e.document + ") - " + status);
+
+                    String activeMark = e.active ? "" : " 🔴 INACTIVO";
+                    setText(e.name + " (" + e.document + ") - " + status + activeMark);
                 }
             }
         });
@@ -103,7 +115,7 @@ public class AttendanceController {
     private void registerAttendance(String type) {
         try {
             String live = fingerprintService.enrollFingerprint();
-            List<Employee> employees = employeeController.getAll();
+            List<Employee> employees = employeeController.getAllActive();
             for (Employee e : employees) {
                 if (e.fingerprintBase64 == null) continue;
                 if (fingerprintService.match(e.fingerprintBase64, live)) {
@@ -144,7 +156,7 @@ public class AttendanceController {
         fingerprintService.startContinuousMode(templateBase64 -> {
             Platform.runLater(() -> {
                 try {
-                    List<Employee> employees = employeeController.getAll();
+                    List<Employee> employees = employeeController.getAllActive();
                     for (Employee e : employees) {
                         if (e.fingerprintBase64 == null) continue;
                         if (fingerprintService.match(e.fingerprintBase64, templateBase64)) {
@@ -258,4 +270,37 @@ public class AttendanceController {
             statusLabel.setText("Error opening reports: " + e.getMessage());
         }
     }
+
+    @FXML
+    public void onToggleEmployeeActive() {
+        Employee sel = employeeList.getSelectionModel().getSelectedItem();
+
+        if (sel == null) {
+            statusLabel.setText("Select employee first");
+            return;
+        }
+
+        try {
+            boolean newState = !sel.active;
+            employeeController.setActive(sel.id, newState);
+
+            refreshEmployees();
+
+            statusLabel.setText(
+                    "Employee " + sel.name + (newState ? " activated" : " deactivated")
+            );
+        } catch (SQLException e) {
+            statusLabel.setText("Error changing status: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void onToggleShowInactive() {
+        try {
+            refreshEmployees();
+        } catch (SQLException e) {
+            statusLabel.setText("Error refreshing list: " + e.getMessage());
+        }
+    }
+
 }

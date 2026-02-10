@@ -13,7 +13,8 @@ public class Database {
                   id INTEGER PRIMARY KEY AUTOINCREMENT,
                   name TEXT,
                   document TEXT,
-                  fingerprint TEXT
+                  fingerprint TEXT,
+                  active INTEGER DEFAULT 1
                 )
             """);
             st.executeUpdate("""

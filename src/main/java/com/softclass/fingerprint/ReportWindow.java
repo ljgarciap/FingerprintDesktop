@@ -10,10 +10,12 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -121,7 +123,7 @@ public class ReportWindow {
 
     private void loadData(Employee emp, LocalDate from, LocalDate to) throws SQLException {
         StringBuilder sql = new StringBuilder("""
-            SELECT e.name, a.timestamp, a.type
+            SELECT e.name, e.active, a.timestamp, a.type
             FROM attendance a
             JOIN employee e ON a.employee_id = e.id
             WHERE 1=1
@@ -153,9 +155,10 @@ public class ReportWindow {
                 table.getItems().clear();
                 while (rs.next()) {
                     table.getItems().add(new AttendanceRecord(
-                            rs.getString("name"),
+                            rs.getString("name") + (rs.getBoolean("active") ? "" : " (INACTIVO)"),
                             rs.getString("timestamp"),
-                            rs.getString("type")
+                            rs.getString("type"),
+                            rs.getBoolean("active")
                     ));
                 }
             }
@@ -166,25 +169,35 @@ public class ReportWindow {
     // ============== EXPORTAR A EXCEL ==============
     // ==============================================
     private void exportToExcel() {
+
+        if (table.getItems().isEmpty()) {
+            new Alert(Alert.AlertType.WARNING,
+                    "No hay datos para exportar").showAndWait();
+            return;
+        }
+
         try {
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle("Generar Excel");
-            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Files", "*.xlsx"));
-            var file = fileChooser.showSaveDialog(null);
+            fileChooser.getExtensionFilters()
+                    .add(new FileChooser.ExtensionFilter("Excel (*.xlsx)", "*.xlsx"));
+            fileChooser.setInitialFileName("reporte_ingresos.xlsx");
+
+            File file = fileChooser.showSaveDialog(table.getScene().getWindow());
             if (file == null) return;
 
             Workbook workbook = new XSSFWorkbook();
-            Sheet sheet = workbook.createSheet("Reporte de Ingresos");
+            Sheet sheet = workbook.createSheet("Reporte");
 
-            org.apache.poi.ss.usermodel.Font headerFont = workbook.createFont();
+            Font headerFont = workbook.createFont();
             headerFont.setBold(true);
-            headerFont.setFontHeightInPoints((short) 12);
 
             CellStyle headerStyle = workbook.createCellStyle();
             headerStyle.setFont(headerFont);
 
-            Row headerRow = sheet.createRow(0);
             String[] columns = {"Usuario", "Timestamp", "Tipo"};
+
+            Row headerRow = sheet.createRow(0);
             for (int i = 0; i < columns.length; i++) {
                 Cell cell = headerRow.createCell(i);
                 cell.setCellValue(columns[i]);
@@ -206,11 +219,16 @@ public class ReportWindow {
             try (FileOutputStream fos = new FileOutputStream(file)) {
                 workbook.write(fos);
             }
+
             workbook.close();
 
-            new Alert(Alert.AlertType.INFORMATION, "Excel exportado correctamente!").show();
+            new Alert(Alert.AlertType.INFORMATION,
+                    "Excel exportado correctamente").showAndWait();
+
         } catch (Exception e) {
-            new Alert(Alert.AlertType.ERROR, "Error exportando Excel: " + e.getMessage()).show();
+            e.printStackTrace();
+            new Alert(Alert.AlertType.ERROR,
+                    "Error exportando Excel:\n" + e.getMessage()).showAndWait();
         }
     }
 
