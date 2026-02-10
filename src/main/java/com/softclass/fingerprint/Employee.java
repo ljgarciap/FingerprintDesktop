@@ -5,6 +5,7 @@ public class Employee {
     public String name;
     public String document;
     public String fingerprintBase64;
+    public boolean active = true;
 
     @Override
     public String toString() {

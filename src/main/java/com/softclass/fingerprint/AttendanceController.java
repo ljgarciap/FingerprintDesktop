@@ -1,10 +1,11 @@
 package com.softclass.fingerprint;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 
-import java.sql.SQLException;
+import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -12,22 +13,43 @@ public class AttendanceController {
 
     @FXML private ListView<Employee> employeeList;
     @FXML private Label statusLabel;
+    @FXML private Button toggleContinuousButton;
+    @FXML private CheckBox showInactiveCheck;
 
     private final EmployeeController employeeController = new EmployeeController();
     private FingerprintService fingerprintService;
+
+    private boolean continuousModeActive = false;
 
     @FXML
     public void initialize() {
         try {
             fingerprintService = new FingerprintService();
             refreshEmployees();
+            setupContinuousButton();
         } catch (Exception e) {
             statusLabel.setText("Error init: " + e.getMessage());
         }
     }
 
+    private void setupContinuousButton() {
+        if (toggleContinuousButton != null) {
+            toggleContinuousButton.setText("Activar modo continuo");
+            toggleContinuousButton.setOnAction(e -> toggleContinuousMode());
+        }
+    }
+
     private void refreshEmployees() throws SQLException {
-        employeeList.getItems().setAll(employeeController.getAll());
+        List<Employee> employees;
+
+        if (showInactiveCheck != null && showInactiveCheck.isSelected()) {
+            employees = employeeController.getAll();       // activos + inactivos
+        } else {
+            employees = employeeController.getAllActive(); // solo activos
+        }
+
+        employeeList.getItems().setAll(employees);
+
         employeeList.setCellFactory(list -> new ListCell<>() {
             @Override
             protected void updateItem(Employee e, boolean empty) {
@@ -36,9 +58,11 @@ public class AttendanceController {
                     setText(null);
                 } else {
                     String status = (e.fingerprintBase64 != null && !e.fingerprintBase64.isBlank())
-                            ? "✅ Enrolled"
-                            : "❌ Not Enrolled";
-                    setText(e.name + " (" + e.document + ") - " + status);
+                            ? "✅ Enrolado"
+                            : "No Enrolado";
+
+                    String activeMark = e.active ? "" : " 🔴 INACTIVO";
+                    setText(e.name + " (" + e.document + ") - " + status + activeMark);
                 }
             }
         });
@@ -70,6 +94,9 @@ public class AttendanceController {
             return;
         }
         try {
+            // detener modo continuo antes de enrolar
+            stopContinuousModeIfActive();
+
             String tmpl = fingerprintService.enrollFingerprint();
             employeeController.updateFingerprint(sel.id, tmpl);
             refreshEmployees();
@@ -88,7 +115,7 @@ public class AttendanceController {
     private void registerAttendance(String type) {
         try {
             String live = fingerprintService.enrollFingerprint();
-            List<Employee> employees = employeeController.getAll();
+            List<Employee> employees = employeeController.getAllActive();
             for (Employee e : employees) {
                 if (e.fingerprintBase64 == null) continue;
                 if (fingerprintService.match(e.fingerprintBase64, live)) {
@@ -108,6 +135,84 @@ public class AttendanceController {
             statusLabel.setText("Error: " + ex.getMessage());
         }
     }
+
+    // -------------------------------------------------------------------------
+    // 🟢 MODO CONTINUO DE ESCUCHA
+    // -------------------------------------------------------------------------
+
+    private void toggleContinuousMode() {
+        if (!continuousModeActive) {
+            startContinuousMode();
+        } else {
+            stopContinuousModeIfActive();
+        }
+    }
+
+    private void startContinuousMode() {
+        continuousModeActive = true;
+        toggleContinuousButton.setText("Detener modo continuo");
+        statusLabel.setText("Modo continuo activo. Escuchando huellas...");
+
+        fingerprintService.startContinuousMode(templateBase64 -> {
+            Platform.runLater(() -> {
+                try {
+                    List<Employee> employees = employeeController.getAllActive();
+                    for (Employee e : employees) {
+                        if (e.fingerprintBase64 == null) continue;
+                        if (fingerprintService.match(e.fingerprintBase64, templateBase64)) {
+                            String nextType = getNextAttendanceType(e.id);
+                            saveAttendance(e.id, nextType);
+                            SoundUtil.playSuccess();
+                            statusLabel.setText(nextType + " registrada para " + e.name);
+                            return;
+                        }
+                    }
+                    SoundUtil.playError();
+                    statusLabel.setText("Huella no registrada");
+                } catch (Exception ex) {
+                    SoundUtil.playError();
+                    statusLabel.setText("Error: " + ex.getMessage());
+                }
+            });
+        });
+    }
+
+    private void stopContinuousModeIfActive() {
+        if (continuousModeActive) {
+            continuousModeActive = false;
+            fingerprintService.stopContinuousMode();
+            if (toggleContinuousButton != null) {
+                toggleContinuousButton.setText("Activar modo continuo");
+            }
+            statusLabel.setText("Modo continuo detenido");
+        }
+    }
+
+    private String getNextAttendanceType(int employeeId) throws SQLException {
+        try (var ps = Database.get().prepareStatement(
+                "SELECT type FROM attendance WHERE employee_id = ? ORDER BY timestamp DESC LIMIT 1")) {
+            ps.setInt(1, employeeId);
+            try (var rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String lastType = rs.getString("type");
+                    return "IN".equals(lastType) ? "OUT" : "IN";
+                }
+            }
+        }
+        return "IN";
+    }
+
+    private void saveAttendance(int employeeId, String type) throws SQLException {
+        try (var ps = Database.get().prepareStatement(
+                "INSERT INTO attendance(employee_id, timestamp, type) VALUES(?,?,?)")) {
+            ps.setInt(1, employeeId);
+            ps.setString(2, LocalDateTime.now().toString());
+            ps.setString(3, type);
+            ps.executeUpdate();
+        }
+    }
+
+    // -------------------------------------------------------------------------
 
     @FXML
     public void onEditEmployee() {
@@ -160,9 +265,41 @@ public class AttendanceController {
     @FXML
     public void onShowReports() {
         try {
-            new ReportWindow().show(); // esto abrirá una ventana simple de reportes
+            new ReportWindow().show();
         } catch (Exception e) {
             statusLabel.setText("Error opening reports: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    public void onToggleEmployeeActive() {
+        Employee sel = employeeList.getSelectionModel().getSelectedItem();
+
+        if (sel == null) {
+            statusLabel.setText("Select employee first");
+            return;
+        }
+
+        try {
+            boolean newState = !sel.active;
+            employeeController.setActive(sel.id, newState);
+
+            refreshEmployees();
+
+            statusLabel.setText(
+                    "Employee " + sel.name + (newState ? " activated" : " deactivated")
+            );
+        } catch (SQLException e) {
+            statusLabel.setText("Error changing status: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void onToggleShowInactive() {
+        try {
+            refreshEmployees();
+        } catch (SQLException e) {
+            statusLabel.setText("Error refreshing list: " + e.getMessage());
         }
     }
 

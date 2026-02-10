@@ -18,6 +18,7 @@ public class EmployeeView {
     private final Button btnSave = new Button("Guardar");
     private final Button btnEnroll = new Button("Capturar Huella");
     private final Button btnUpdate = new Button("Actualizar");
+    private final Button btnToggleActive = new Button("Activar / Desactivar");
 
     private FingerprintService fingerprintService;
 
@@ -44,6 +45,7 @@ public class EmployeeView {
         form.add(btnSave, 0, 2);
         form.add(btnEnroll, 1, 2);
         form.add(btnUpdate, 2, 2);
+        form.add(btnToggleActive, 0, 3, 3, 1);
 
         // --- Tabla ---
         TableColumn<Employee, String> colName = new TableColumn<>("Nombre");
@@ -54,15 +56,39 @@ public class EmployeeView {
 
         TableColumn<Employee, String> colFP = new TableColumn<>("Huella Registrada");
         colFP.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
-                c.getValue().fingerprintBase64 != null ? "✅ Sí" : "❌ No"
+                c.getValue().fingerprintBase64 != null ? "✅ Sí" : "No"
         ));
 
-        table.getColumns().addAll(colName, colDoc, colFP);
+        TableColumn<Employee, String> colStatus = new TableColumn<>("Estado");
+        colStatus.setCellValueFactory(c ->
+                new javafx.beans.property.SimpleStringProperty(
+                        c.getValue().active ? "🟢 Activo" : "🔴 Inactivo"
+                )
+        );
+
+        table.getColumns().addAll(colName, colDoc, colFP, colStatus);
+
+        table.setRowFactory(tv -> new TableRow<>() {
+            @Override
+            protected void updateItem(Employee item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (item == null || empty) {
+                    setStyle("");
+                } else if (!item.active) {
+                    setStyle("-fx-background-color: #eeeeee; -fx-text-fill: #888888;");
+                } else {
+                    setStyle("");
+                }
+            }
+        });
+
         refreshTable();
 
         btnSave.setOnAction(e -> onSave());
         btnEnroll.setOnAction(e -> onEnroll());
         btnUpdate.setOnAction(e -> onUpdate());
+        btnToggleActive.setOnAction(e -> onToggleActive());
 
         VBox root = new VBox(10, form, table);
         root.setPadding(new Insets(10));
@@ -116,6 +142,11 @@ public class EmployeeView {
             return;
         }
 
+        if (!selected.active) {
+            showError("No se puede capturar huella de un empleado INACTIVO");
+            return;
+        }
+
         try {
             String tmpl = fingerprintService.enrollFingerprint();
             employeeController.updateFingerprint(selected.id, tmpl);
@@ -133,6 +164,24 @@ public class EmployeeView {
             table.getItems().setAll(list);
         } catch (SQLException ex) {
             showError("Error al cargar empleados: " + ex.getMessage());
+        }
+    }
+
+    private void onToggleActive() {
+        Employee selected = table.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showError("Selecciona un empleado");
+            return;
+        }
+
+        try {
+            boolean newState = !selected.active;
+            employeeController.setActive(selected.id, newState);
+            refreshTable();
+
+            showAlert("Empleado " + (newState ? "ACTIVADO" : "DESACTIVADO") + " correctamente");
+        } catch (SQLException ex) {
+            showError("Error cambiando estado: " + ex.getMessage());
         }
     }
 
